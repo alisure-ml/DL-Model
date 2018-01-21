@@ -169,6 +169,7 @@ def vgg_16(inputs,
     """
     with tf.variable_scope(scope, 'vgg_16', [inputs]) as sc:
         end_points_collection = sc.original_name_scope + '_end_points'
+
         # Collect outputs for conv2d, fully_connected and max_pool2d.
         with slim.arg_scope([slim.conv2d, slim.fully_connected, slim.max_pool2d],
                             outputs_collections=end_points_collection):
@@ -185,25 +186,22 @@ def vgg_16(inputs,
 
             # Use conv2d instead of fully_connected layers.
             net = slim.conv2d(net, 4096, [7, 7], padding=fc_conv_padding, scope='fc6')
-            net = slim.dropout(net, dropout_keep_prob, is_training=is_training,
-                               scope='dropout6')
+            net = slim.dropout(net, dropout_keep_prob, is_training=is_training, scope='dropout6')
             net = slim.conv2d(net, 4096, [1, 1], scope='fc7')
+
             # Convert end_points_collection into a end_point dict.
             end_points = slim.utils.convert_collection_to_dict(end_points_collection)
             if global_pool:
                 net = tf.reduce_mean(net, [1, 2], keep_dims=True, name='global_pool')
                 end_points['global_pool'] = net
             if num_classes:
-                net = slim.dropout(net, dropout_keep_prob, is_training=is_training,
-                                   scope='dropout7')
-                net = slim.conv2d(net, num_classes, [1, 1],
-                                  activation_fn=None,
-                                  normalizer_fn=None,
-                                  scope='fc8')
+                net = slim.dropout(net, dropout_keep_prob, is_training=is_training, scope='dropout7')
+                net = slim.conv2d(net, num_classes, [1, 1], activation_fn=None, normalizer_fn=None, scope='fc8')
                 if spatial_squeeze and num_classes is not None:
                     net = tf.squeeze(net, [1, 2], name='fc8/squeezed')
                 end_points[sc.name + '/fc8'] = net
             return net, end_points
+    pass
 
 
 vgg_16.default_image_size = 224

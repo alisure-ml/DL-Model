@@ -62,27 +62,23 @@ from tensorflow.python.platform import gfile
 from datasets import dataset_factory
 from nets import nets_factory
 
-
 slim = tf.contrib.slim
 
 tf.app.flags.DEFINE_string(
     'model_name', 'inception_v3', 'The name of the architecture to save.')
 
 tf.app.flags.DEFINE_boolean(
-    'is_training', False,
-    'Whether to save out a training-focused version of the model.')
+    'is_training', False, 'Whether to save out a training-focused version of the model.')
 
 tf.app.flags.DEFINE_integer(
-    'image_size', None,
-    'The image size to use, otherwise use the model default_image_size.')
+    'image_size', None, 'The image size to use, otherwise use the model default_image_size.')
 
 tf.app.flags.DEFINE_integer(
-    'batch_size', None,
-    'Batch size for the exported model. Defaulted to "None" so batch size can '
-    'be specified at model runtime.')
+    'batch_size', None, 'Batch size for the exported model. Defaulted to "None" so batch size can '
+                        'be specified at model runtime.')
 
-tf.app.flags.DEFINE_string('dataset_name', 'imagenet',
-                           'The name of the dataset to use with the model.')
+tf.app.flags.DEFINE_string(
+    'dataset_name', 'imagenet', 'The name of the dataset to use with the model.')
 
 tf.app.flags.DEFINE_integer(
     'labels_offset', 0,
@@ -100,25 +96,22 @@ FLAGS = tf.app.flags.FLAGS
 
 
 def main(_):
-  if not FLAGS.output_file:
-    raise ValueError('You must supply the path to save to with --output_file')
-  tf.logging.set_verbosity(tf.logging.INFO)
-  with tf.Graph().as_default() as graph:
-    dataset = dataset_factory.get_dataset(FLAGS.dataset_name, 'train',
-                                          FLAGS.dataset_dir)
-    network_fn = nets_factory.get_network_fn(
-        FLAGS.model_name,
-        num_classes=(dataset.num_classes - FLAGS.labels_offset),
-        is_training=FLAGS.is_training)
-    image_size = FLAGS.image_size or network_fn.default_image_size
-    placeholder = tf.placeholder(name='input', dtype=tf.float32,
-                                 shape=[FLAGS.batch_size, image_size,
-                                        image_size, 3])
-    network_fn(placeholder)
-    graph_def = graph.as_graph_def()
-    with gfile.GFile(FLAGS.output_file, 'wb') as f:
-      f.write(graph_def.SerializeToString())
+    if not FLAGS.output_file:
+        raise ValueError('You must supply the path to save to with --output_file')
+    tf.logging.set_verbosity(tf.logging.INFO)
+    with tf.Graph().as_default() as graph:
+        dataset = dataset_factory.get_dataset(FLAGS.dataset_name, 'train', FLAGS.dataset_dir)
+        network_fn = nets_factory.get_network_fn(FLAGS.model_name, is_training=FLAGS.is_training,
+                                                 num_classes=(dataset.num_classes - FLAGS.labels_offset))
+        image_size = FLAGS.image_size or network_fn.default_image_size
+        placeholder = tf.placeholder(name='input', dtype=tf.float32,
+                                     shape=[FLAGS.batch_size, image_size, image_size, 3])
+        network_fn(placeholder)
+        graph_def = graph.as_graph_def()
+        with gfile.GFile(FLAGS.output_file, 'wb') as f:
+            f.write(graph_def.SerializeToString())
+    pass
 
 
 if __name__ == '__main__':
-  tf.app.run()
+    tf.app.run()
