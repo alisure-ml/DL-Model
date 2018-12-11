@@ -39,29 +39,38 @@ class InferenceVGG(object):
 
     def build_summaries(self, end_points):
         with tf.name_scope('CNN_outputs'):
+            tf.summary.image('images', tf.expand_dims(end_points["images"], 0))
             tf.summary.image('vgg16/1/conv1/conv1_1', self._concact_features(end_points['vgg_16/conv1/conv1_1']))
             tf.summary.image('vgg16/1/conv1/conv1_2', self._concact_features(end_points['vgg_16/conv1/conv1_2']))
-            tf.summary.image('vgg16/1/pool1',self._concact_features(end_points['vgg_16/pool1']))
+            tf.summary.image('vgg16/1/pool1', self._concact_features(end_points['vgg_16/pool1']))
+
             tf.summary.image('vgg16/2/conv2/conv2_1', self._concact_features(end_points['vgg_16/conv2/conv2_1']))
             tf.summary.image('vgg16/2/conv2/conv2_2', self._concact_features(end_points['vgg_16/conv2/conv2_2']))
-            tf.summary.image('vgg16/2/pool2',self._concact_features(end_points['vgg_16/pool2']))
+            tf.summary.image('vgg16/2/pool2', self._concact_features(end_points['vgg_16/pool2']))
+
             tf.summary.image('vgg16/3/conv3/conv3_1', self._concact_features(end_points['vgg_16/conv3/conv3_1']))
             tf.summary.image('vgg16/3/conv3/conv3_2', self._concact_features(end_points['vgg_16/conv3/conv3_2']))
             tf.summary.image('vgg16/3/conv3/conv3_3', self._concact_features(end_points['vgg_16/conv3/conv3_3']))
             tf.summary.image('vgg16/3/pool3', self._concact_features(end_points['vgg_16/pool3']))
+
             tf.summary.image('vgg16/4/conv4/conv4_1', self._concact_features(end_points['vgg_16/conv4/conv4_1']))
             tf.summary.image('vgg16/4/conv4/conv4_2', self._concact_features(end_points['vgg_16/conv4/conv4_2']))
             tf.summary.image('vgg16/4/conv4/conv4_3', self._concact_features(end_points['vgg_16/conv4/conv4_3']))
             tf.summary.image('vgg16/4/pool4', self._concact_features(end_points['vgg_16/pool4']))
+
             tf.summary.image('vgg16/5/conv5/conv5_1', self._concact_features(end_points['vgg_16/conv5/conv5_1']))
-            tf.summary.image('vgg16/5/conv5/conv5_2',self._concact_features(end_points['vgg_16/conv5/conv5_2']))
-            tf.summary.image('vgg16/5/conv5/conv5_3',self._concact_features(end_points['vgg_16/conv5/conv5_3']))
-            tf.summary.image('vgg16/5/pool5',self._concact_features(end_points['vgg_16/pool5']))
+            tf.summary.image('vgg16/5/conv5/conv5_2', self._concact_features(end_points['vgg_16/conv5/conv5_2']))
+            tf.summary.image('vgg16/5/conv5/conv5_3', self._concact_features(end_points['vgg_16/conv5/conv5_3']))
+            tf.summary.image('vgg16/5/pool5', self._concact_features(end_points['vgg_16/pool5']))
             pass
         pass
 
     @staticmethod
-    def _concact_features(conv_output):
+    def _concact_features(conv_output, resize=False):
+        if resize:
+            conv_output = tf.image.resize_bilinear(conv_output, size=[64, 64])
+            pass
+
         num_or_size_splits = conv_output.get_shape().as_list()[-1]
         each_convs = tf.split(conv_output, num_or_size_splits=num_or_size_splits, axis=3)
         concact_size = int(math.sqrt(num_or_size_splits) / 1)
@@ -69,8 +78,7 @@ class InferenceVGG(object):
         for i in range(concact_size):
             row_concact = each_convs[i * concact_size]
             for j in range(concact_size - 1):
-                row_concact = tf.concat(
-                [row_concact, each_convs[i * concact_size + j + 1]], 1)
+                row_concact = tf.concat([row_concact, each_convs[i * concact_size + j + 1]], 1)
             if i == 0:
                 all_concact = row_concact
             else:
@@ -87,6 +95,7 @@ class InferenceVGG(object):
                 logits, end_points = vgg.vgg_16(processed_images, num_classes=1000, is_training=False)
             op_probabilities = tf.nn.softmax(logits)
 
+            end_points["images"] = image
             self.build_summaries(end_points)
             with tf.name_scope("w_b"):
                 var_list = tf.global_variables()
@@ -109,47 +118,13 @@ class InferenceVGG(object):
 
                 summary_writer.add_summary(merged, 1)
 
+                names = self.create_readable_names_for_imagenet_labels()
+                for i in range(5):
+                    print('Prob %0.2f%% => [%s]' % (probabilities[sorted_inds[i]] * 100, names[sorted_inds[i] + 1]))
+
                 pass
+            pass
 
-            names = self.create_readable_names_for_imagenet_labels()
-            for i in range(5):
-                print('Prob %0.2f%% => [%s]' % (probabilities[sorted_inds[i]] * 100, names[sorted_inds[i] + 1]))
-        pass
-
-    def inference_dir(self, image_dir):
-        # 得到所有需要预测的图片
-        images_filename = [os.path.join(image_dir, filename) for filename in os.listdir(image_dir)]
-
-        with tf.Graph().as_default():
-            # 构建推理图
-            op_inputs = tf.placeholder(dtype=tf.float32, shape=[None, 224, 224, 3])
-            with slim.arg_scope(vgg.vgg_arg_scope()):
-                op_logits, _ = vgg.vgg_16(op_inputs, num_classes=1000, is_training=False)
-            op_probabilities = tf.nn.softmax(op_logits)
-
-            # 恢复模型
-            init_fn = slim.assign_from_checkpoint_fn(self.checkpoints_file, slim.get_model_variables('vgg_16'))
-
-            with tf.Session() as sess:
-                init_fn(sess)
-
-                for image_filename in images_filename:
-                    # 读取数据
-                    image = tf.image.decode_jpeg(tf.gfile.FastGFile(image_filename, "rb").read(), channels=3)
-                    processed_image = vgg_preprocessing.preprocess_image(image, self.image_size, self.image_size, False)
-                    processed_images = tf.expand_dims(processed_image, 0)
-                    images = sess.run(processed_images)
-                    # 预测
-                    probabilities = sess.run(op_probabilities, feed_dict={op_inputs: images})
-                    probabilities = probabilities[0, 0:]
-                    sorted_inds = [i[0] for i in sorted(enumerate(-probabilities), key=lambda x: x[1])]
-
-                    # 转换并打印
-                    names = self.create_readable_names_for_imagenet_labels()
-                    for i in range(5):
-                        print('Prob %0.2f%% => [%s]' % (probabilities[sorted_inds[i]] * 100, names[sorted_inds[i] + 1]))
-                    print()
-                pass
         pass
 
     pass
