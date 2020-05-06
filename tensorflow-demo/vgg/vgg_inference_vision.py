@@ -8,12 +8,14 @@ import vgg_preprocessing
 
 class InferenceVGG(object):
 
-    def __init__(self, checkpoints_dir='/home/ubuntu/data1.5TB/ImageNetWeights/vgg_16.ckpt'):
+    def __init__(self, checkpoints_dir='/home/ubuntu/data1.5TB/ImageNetWeights/vgg_16.ckpt',
+                 synsets_filename="../slim/datasets/imagenet_lsvrc_2015_synsets.txt",
+                 metadata_filename="../slim/datasets/imagenet_metadata.txt"):
         self.checkpoints_file = checkpoints_dir
         self.image_size = 224
 
-        self.synsets_filename = "../slim/datasets/imagenet_lsvrc_2015_synsets.txt"
-        self.metadata_filename = "../slim/datasets/imagenet_metadata.txt"
+        self.synsets_filename = synsets_filename
+        self.metadata_filename = metadata_filename
         pass
 
     # 获得预测的结果对应的含义:
@@ -53,22 +55,32 @@ class InferenceVGG(object):
             tf.summary.image('vgg16/3/conv3/conv3_3', self._concact_features(end_points['vgg_16/conv3/conv3_3']))
             tf.summary.image('vgg16/3/pool3', self._concact_features(end_points['vgg_16/pool3']))
 
-            tf.summary.image('vgg16/4/conv4/conv4_1', self._concact_features(end_points['vgg_16/conv4/conv4_1']))
-            tf.summary.image('vgg16/4/conv4/conv4_2', self._concact_features(end_points['vgg_16/conv4/conv4_2']))
-            tf.summary.image('vgg16/4/conv4/conv4_3', self._concact_features(end_points['vgg_16/conv4/conv4_3']))
-            tf.summary.image('vgg16/4/pool4', self._concact_features(end_points['vgg_16/pool4']))
+            tf.summary.image('vgg16/4/conv4/conv4_1',
+                             self._concact_features(end_points['vgg_16/conv4/conv4_1'], resize=True))
+            tf.summary.image('vgg16/4/conv4/conv4_2',
+                             self._concact_features(end_points['vgg_16/conv4/conv4_2'], resize=True))
+            tf.summary.image('vgg16/4/conv4/conv4_3',
+                             self._concact_features(end_points['vgg_16/conv4/conv4_3'], resize=True))
+            tf.summary.image('vgg16/4/pool4', self._concact_features(end_points['vgg_16/pool4'], resize=True))
 
-            tf.summary.image('vgg16/5/conv5/conv5_1', self._concact_features(end_points['vgg_16/conv5/conv5_1']))
-            tf.summary.image('vgg16/5/conv5/conv5_2', self._concact_features(end_points['vgg_16/conv5/conv5_2']))
-            tf.summary.image('vgg16/5/conv5/conv5_3', self._concact_features(end_points['vgg_16/conv5/conv5_3']))
+            tf.summary.image('vgg16/5/conv5/conv5_1',
+                             self._concact_features(end_points['vgg_16/conv5/conv5_1'], resize=True))
+            tf.summary.image('vgg16/5/conv5/conv5_2',
+                             self._concact_features(end_points['vgg_16/conv5/conv5_2'], resize=True))
+            tf.summary.image('vgg16/5/conv5/conv5_3',
+                             self._concact_features(end_points['vgg_16/conv5/conv5_3'], resize=True))
             tf.summary.image('vgg16/5/pool5', self._concact_features(end_points['vgg_16/pool5']))
             pass
         pass
 
     @staticmethod
-    def _concact_features(conv_output, resize=False):
+    def _concact_features(conv_output, resize=False, is_padding=True):
         if resize:
             conv_output = tf.image.resize_bilinear(conv_output, size=[64, 64])
+            pass
+
+        if is_padding:
+            conv_output = tf.pad(conv_output, paddings=[[0, 0], [1, 1], [1, 1], [0, 0]], constant_values=255)
             pass
 
         num_or_size_splits = conv_output.get_shape().as_list()[-1]
@@ -130,6 +142,12 @@ class InferenceVGG(object):
     pass
 
 if __name__ == '__main__':
-    inference_vgg = InferenceVGG()
-    inference_vgg.inference(image_filename="../image/demo_2.jpg", log_path="../log")
-    # inference_vgg.inference_dir(image_dir="../image")
+    # inference_vgg = InferenceVGG()
+    # inference_vgg.inference(image_filename="../image/demo_2.jpg", log_path="../log")
+    # # inference_vgg.inference_dir(image_dir="../image")
+
+    inference_vgg = InferenceVGG(checkpoints_dir="D:\\model\\imagenet\\vgg_16.ckpt",
+                                 synsets_filename="..\\slim\\datasets\\imagenet_lsvrc_2015_synsets.txt",
+                                 metadata_filename="..\\slim\\datasets\\imagenet_metadata.txt")
+    inference_vgg.inference(image_filename="..\\image\\demo_2.jpg", log_path="..\\log\\2")
+
