@@ -1,13 +1,13 @@
 import torch
 import numpy as np
 from alisuretool.Tools import Tools
-from torchvision.models import vgg16
+from torchvision.models import vgg16, vgg16_bn, resnet18, resnet34, resnet50
 
 
 class ParamNum(object):
 
-    def __init__(self):
-        self.model = vgg16()
+    def __init__(self, model_fn=vgg16_bn):
+        self.model = model_fn()
         pass
 
     def info(self):
@@ -27,6 +27,9 @@ class ParamNum(object):
 
 
 if __name__ == '__main__':
-    param_num = ParamNum()
-    param_num.info()
+    ParamNum(vgg16).info()
+    ParamNum(vgg16_bn).info()
+    ParamNum(resnet18).info()
+    ParamNum(resnet34).info()
+    ParamNum(resnet50).info()
     pass
